@@ -1,0 +1,354 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(100)
+  email           String    @unique @db.VarChar(255)
+  phone           String?   @unique @db.VarChar(20)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  isEmailVerified Boolean   @default(false) @map("is_email_verified")
+  isPhoneVerified Boolean   @default(false) @map("is_phone_verified")
+  isVerified      Boolean   @default(false) @map("is_verified")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  profile         Profile?
+  settings        UserSettings?
+  interests       UserInterest[]
+  otps            Otp[]
+  verificationRequests VerificationRequest[] @relation("UserVerificationRequests")
+  reviewedRequests VerificationRequest[] @relation("AdminReviewedRequests")
+  posts           Post[]
+  likes           PostLike[]
+  comments        Comment[]
+  followers       Follow[] @relation("Following")
+  following       Follow[] @relation("Followers")
+  reportsMade     Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("ReportedUser")
+  blocksMade      Block[] @relation("Blocker")
+  blocksReceived  Block[] @relation("Blocked")
+  conversations   ConversationMember[]
+  messages        Message[]
+  pushTokens PushToken[]
+
+  @@map("users")
+}
+
+model Profile {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique @map("user_id")
+  avatarUrl       String?   @map("avatar_url") @db.VarChar(500)
+  bio             String?   @db.Text
+  location        String?   @db.VarChar(100)
+  occupation      String?   @db.VarChar(100)
+  dateOfBirth     DateTime? @map("date_of_birth") @db.Date
+  privacyProfileVisibility ProfileVisibility @default(members_only) @map("privacy_profile_visibility")
+  privacyAllowMessages MessagePrivacy @default(all_members) @map("privacy_allow_messages")
+  privacyShowOnlineStatus Boolean @default(true) @map("privacy_show_online_status")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model UserSettings {
+  userId            Int     @id @map("user_id")
+  pushNotifications Boolean @default(true) @map("push_notifications")
+  emailNotifications Boolean @default(true) @map("email_notifications")
+  chatNotifications Boolean @default(true) @map("chat_notifications")
+  communityUpdates  Boolean @default(true) @map("community_updates")
+
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Interest {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique @db.VarChar(50)
+  category String   @db.VarChar(50)
+  icon     String?  @db.VarChar(50)
+
+  userInterests UserInterest[]
+
+  @@map("interests")
+}
+
+model UserInterest {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  interestId Int      @map("interest_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, interestId])
+  @@map("user_interests")
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  email     String   @db.VarChar(255)
+  otpCode   String   @map("otp_code") @db.VarChar(6)
+  purpose   OtpPurpose @default(registration)
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?    @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@index([email, otpCode])
+  @@map("otps")
+}
+
+model VerificationRequest {
+  id               Int                @id @default(autoincrement())
+  userId           Int                @map("user_id")
+  status           VerificationStatus @default(pending)
+  verificationType VerificationType   @map("verification_type")
+  documentNote     String?            @map("document_note") @db.Text
+  documentUrl      String?            @map("document_url") @db.VarChar(500)
+  documentPublicId String?            @map("document_public_id") @db.VarChar(255)
+  adminNotes       String?            @map("admin_notes") @db.Text
+  submittedAt      DateTime           @default(now()) @map("submitted_at")
+  reviewedAt       DateTime?          @map("reviewed_at")
+  reviewedBy       Int?               @map("reviewed_by")
+
+  user             User               @relation("UserVerificationRequests", fields: [userId], references: [id], onDelete: Cascade)
+  admin            User?              @relation("AdminReviewedRequests", fields: [reviewedBy], references: [id])
+
+  @@map("verification_requests")
+}
+
+// Phase 3 Models
+
+model Post {
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  content         String         @db.Text
+  mediaUrls       String[]       @map("media_urls") @default([])
+  mediaTypes      MediaType[]    @map("media_types") @default([])
+  mediaThumbnails String[]       @map("media_thumbnails") @default([])
+  visibility      PostVisibility @default(public)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes      PostLike[]
+  comments   Comment[]
+  reports    Report[]
+
+  @@index([userId, createdAt])
+  @@index([visibility, createdAt])
+  @@map("posts")
+}
+
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+  @@map("post_likes")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  parentId  Int?     @map("parent_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  reports   Report[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int      @map("follower_id")
+  followingId Int      @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+  @@map("follows")
+}
+
+model Report {
+  id              Int          @id @default(autoincrement())
+  reporterId      Int          @map("reporter_id")
+  reportedUserId  Int?         @map("reported_user_id")
+  postId          Int?         @map("post_id")
+  commentId       Int?         @map("comment_id")
+  reason          String       @db.VarChar(255)
+  description     String?      @db.Text
+  status          ReportStatus @default(pending)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  resolvedAt      DateTime?    @map("resolved_at")
+
+  reporter        User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser    User?        @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  post            Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment         Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model Block {
+  id         Int      @id @default(autoincrement())
+  blockerId  Int      @map("blocker_id")
+  blockedId  Int      @map("blocked_id")
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  blocker    User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+// Chat Models
+
+model Conversation {
+  id        Int      @id @default(autoincrement())
+  isGroup   Boolean  @default(false) @map("is_group")
+  name      String?  @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members   ConversationMember[]
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             Int          @id @default(autoincrement())
+  conversationId Int          @map("conversation_id")
+  userId         Int          @map("user_id")
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+  lastReadAt     DateTime?    @map("last_read_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int          @map("conversation_id")
+  senderId       Int          @map("sender_id")
+  content        String       @db.Text
+  messageType    MessageType  @default(text) @map("message_type")
+  mediaUrls      String[]     @map("media_urls") @default([])
+  isRead         Boolean      @default(false) @map("is_read")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  token     String   @unique @db.VarChar(500)
+  platform  String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}
+
+enum MessageType {
+  text
+  image
+  video
+  file
+  system
+}
+
+enum ProfileVisibility {
+  public
+  members_only
+  connections_only
+}
+
+enum MessagePrivacy {
+  all_members
+  connections_only
+}
+
+enum OtpPurpose {
+  registration
+  login
+  verification
+}
+
+enum VerificationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum VerificationType {
+  id_proof
+  student_id
+  work_id
+  social_profile
+}
+
+enum MediaType {
+  image
+  video
+}
+
+enum PostVisibility {
+  public
+  members_only
+  connections_only
+}
+
+enum ReportStatus {
+  pending
+  reviewing
+  resolved
+  dismissed
+}

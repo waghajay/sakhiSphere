@@ -1,0 +1,22 @@
+# 1. Install dependencies
+
+npm install
+
+# 2. Set up PostgreSQL database
+# Make sure PostgreSQL is running locally with:
+# Database: sakhisphere
+# User: postgres
+# Password: postgres
+# Port: 5432
+
+# 3. Run Prisma migrations
+npx prisma migrate dev --name init
+
+# 4. Generate Prisma client
+npx prisma generate
+
+# 5. Seed the database
+npm run db:seed
+
+# 6. Start development server
+npm run dev
