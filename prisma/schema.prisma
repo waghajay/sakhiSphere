@@ -297,6 +297,12 @@ model PushToken {
   @@map("push_tokens")
 }
 
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 enum MessageType {
   text
   image

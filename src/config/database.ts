@@ -5,6 +5,11 @@ let prisma: PrismaClient;
 
 export function initDatabase(): void {
   prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: env.databaseUrl,
+      },
+    },
     log: env.nodeEnv === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
   
