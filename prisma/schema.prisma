@@ -37,6 +37,13 @@ model User {
   conversations   ConversationMember[]
   messages        Message[]
   pushTokens PushToken[]
+  groupsOwned     Group[]         @relation("GroupOwner")
+  groupMemberships GroupMember[]
+  groupPosts      GroupPost[]
+  groupPostLikes    GroupPostLike[]
+  groupPostComments GroupPostComment[]
+  eventsOrganized Event[]     @relation("EventOrganizer")
+  eventRsvps      EventRsvp[]
 
   @@map("users")
 }
@@ -297,6 +304,177 @@ model PushToken {
   @@map("push_tokens")
 }
 
+
+// ============================================
+// GROUPS MODELS (Phase 5.1)
+// ============================================
+
+model Group {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  coverUrl    String?   @map("cover_url") @db.VarChar(500)
+  privacy     GroupPrivacy @default(public)
+  category    String?   @db.VarChar(50)
+  memberCount Int       @default(0) @map("member_count")
+  postCount   Int       @default(0) @map("post_count")
+  ownerId     Int       @map("owner_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  owner       User             @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  posts       GroupPost[]
+  events          Event[]
+
+  @@index([ownerId])
+  @@index([privacy])
+  @@index([memberCount])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        Int           @id @default(autoincrement())
+  groupId   Int           @map("group_id")
+  userId    Int           @map("user_id")
+  role      GroupRole     @default(member)
+  joinedAt  DateTime      @default(now()) @map("joined_at")
+
+  group     Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([groupId])
+  @@map("group_members")
+}
+
+model GroupPost {
+  id        Int      @id @default(autoincrement())
+  groupId   Int      @map("group_id")
+  userId    Int      @map("user_id")
+  content   String   @db.Text
+  mediaUrls String[] @map("media_urls") @default([])
+  mediaTypes MediaType[] @map("media_types") @default([])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes      GroupPostLike[]
+  comments   GroupPostComment[]
+
+  @@index([groupId, createdAt])
+  @@index([userId])
+  @@map("group_posts")
+}
+
+model GroupPostLike {
+  id          Int       @id @default(autoincrement())
+  groupPostId Int       @map("group_post_id")
+  userId      Int       @map("user_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  groupPost   GroupPost @relation(fields: [groupPostId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupPostId, userId])
+  @@index([userId, createdAt])
+  @@map("group_post_likes")
+}
+
+model GroupPostComment {
+  id          Int       @id @default(autoincrement())
+  groupPostId Int       @map("group_post_id")
+  userId      Int       @map("user_id")
+  parentId    Int?      @map("parent_id")
+  content     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  groupPost   GroupPost @relation(fields: [groupPostId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      GroupPostComment?  @relation("GroupCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     GroupPostComment[] @relation("GroupCommentReplies")
+
+  @@index([groupPostId, createdAt])
+  @@index([parentId])
+  @@map("group_post_comments")
+}
+
+
+// ============================================
+// EVENTS MODELS (Phase 5.3)
+// ============================================
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  coverUrl    String?   @map("cover_url") @db.VarChar(500)
+
+  // When & where
+  startAt     DateTime  @map("start_at")
+  endAt       DateTime? @map("end_at")
+  location    String?   @db.VarChar(200)
+  isVirtual   Boolean   @default(false) @map("is_virtual")
+  meetingUrl  String?   @map("meeting_url") @db.VarChar(500)
+
+  // Capacity (nullable = unlimited)
+  capacity    Int?
+
+  // Optional link to a group (events can belong to a group)
+  groupId     Int?      @map("group_id")
+
+  // Organizer
+  organizerId Int       @map("organizer_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  organizer   User              @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  group       Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  rsvps       EventRsvp[]
+
+  @@index([startAt])
+  @@index([organizerId])
+  @@index([groupId])
+  @@map("events")
+}
+
+model EventRsvp {
+  id         Int       @id @default(autoincrement())
+  eventId    Int       @map("event_id")
+  userId     Int       @map("user_id")
+  status     EventRsvpStatus @default(going)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId, status])
+  @@index([userId])
+  @@map("event_rsvps")
+}
+
+enum EventRsvpStatus {
+  going
+  maybe
+  not_going
+}
+
+enum GroupPrivacy {
+  public
+  private
+  invite_only
+}
+
+enum GroupRole {
+  owner
+  admin
+  member
+}
 
 enum MessageType {
   text

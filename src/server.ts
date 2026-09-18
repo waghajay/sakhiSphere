@@ -17,6 +17,8 @@ import commentsRoutes from './comments/comments.routes';
 import followRoutes from './follow/follow.routes';
 import searchRoutes from './search/search.routes';
 import uploadRoutes from './upload/upload.routes';
+import groupsRoutes from './groups/groups.routes';   // ← ADD THIS
+import eventsRoutes from './events/events.routes';
 import chatRoutes from './chat/chat.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { ChatSocket } from './chat/socket';
@@ -85,6 +87,9 @@ app.use('/api', followRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/groups', groupsRoutes);   // ← ADD THIS
+app.use('/api/events', eventsRoutes);
+
 
 // 404 handler
 app.use((_req, res) => {
