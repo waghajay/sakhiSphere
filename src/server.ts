@@ -19,6 +19,7 @@ import searchRoutes from './search/search.routes';
 import uploadRoutes from './upload/upload.routes';
 import groupsRoutes from './groups/groups.routes';   // ← ADD THIS
 import eventsRoutes from './events/events.routes';
+import meetingsRoutes from './meetings/meetings.routes';
 import chatRoutes from './chat/chat.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { ChatSocket } from './chat/socket';
@@ -89,6 +90,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/groups', groupsRoutes);   // ← ADD THIS
 app.use('/api/events', eventsRoutes);
+app.use('/api/meetings', meetingsRoutes);
 
 
 // 404 handler

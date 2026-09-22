@@ -44,6 +44,8 @@ model User {
   groupPostComments GroupPostComment[]
   eventsOrganized Event[]     @relation("EventOrganizer")
   eventRsvps      EventRsvp[]
+  meetingsHosted  Meeting[]           @relation("MeetingHost")
+  meetingInvites  MeetingParticipant[]
 
   @@map("users")
 }
@@ -326,6 +328,7 @@ model Group {
   members     GroupMember[]
   posts       GroupPost[]
   events          Event[]
+  meetings        Meeting[]
 
   @@index([ownerId])
   @@index([privacy])
@@ -434,6 +437,7 @@ model Event {
   organizer   User              @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
   group       Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   rsvps       EventRsvp[]
+  meetings        Meeting[]
 
   @@index([startAt])
   @@index([organizerId])
@@ -456,6 +460,68 @@ model EventRsvp {
   @@index([eventId, status])
   @@index([userId])
   @@map("event_rsvps")
+}
+
+
+// ============================================
+// MEETINGS MODELS (Phase 5.4)
+// ============================================
+
+model Meeting {
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(200)
+  description     String?   @db.Text
+  channelName     String    @unique @map("channel_name") @db.VarChar(100)
+
+  hostId          Int       @map("host_id")
+  scheduledAt     DateTime? @map("scheduled_at")
+  startedAt       DateTime? @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  isInstant       Boolean   @default(false) @map("is_instant")
+  maxParticipants Int?      @map("max_participants")
+  isLiveStream    Boolean   @default(false) @map("is_live_stream")
+  recordingUrl    String?   @map("recording_url") @db.VarChar(500)
+
+  eventId         Int?      @map("event_id")
+  groupId         Int?      @map("group_id")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  host            User                  @relation("MeetingHost", fields: [hostId], references: [id], onDelete: Cascade)
+  event           Event?                @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  group           Group?                @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  participants    MeetingParticipant[]
+
+  @@index([hostId, scheduledAt])
+  @@index([scheduledAt])
+  @@index([eventId])
+  @@index([groupId])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  id         Int           @id @default(autoincrement())
+  meetingId  Int           @map("meeting_id")
+  userId     Int           @map("user_id")
+  role       MeetingRole   @default(audience)
+  invitedAt  DateTime      @default(now()) @map("invited_at")
+  joinedAt   DateTime?     @map("joined_at")
+  leftAt     DateTime?     @map("left_at")
+
+  meeting    Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([meetingId, role])
+  @@index([userId])
+  @@map("meeting_participants")
+}
+
+enum MeetingRole {
+  host
+  speaker
+  audience
 }
 
 enum EventRsvpStatus {

@@ -105,3 +105,10 @@ echo "🎉 ALL SMOKE TESTS PASSED"
 
 
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJhamF5QGdtYWlsLmNvbSIsImlhdCI6MTc4OTczMTMxOCwiZXhwIjoxNzkwMzM2MTE4fQ.Ze7shi_3zfIp6oaw5PjjJo7fiy8GUpBo2cQI-fn735M
+
+
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJhamF5QGdtYWlsLmNvbSIsImlhdCI6MTc4OTczMTMxOCwiZXhwIjoxNzkwMzM2MTE4fQ.Ze7shi_3zfIp6oaw5PjjJo7fiy8GUpBo2cQI-fn735M"
+curl -i -X POST http://localhost:3000/api/meetings \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","isInstant":true}'
